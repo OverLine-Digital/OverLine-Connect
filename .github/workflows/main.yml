@@ -1,0 +1,24 @@
+name: Build
+on: [push]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Tidy modules
+        run: go mod tidy
+      - name: Build
+        run: go build ./cmd/server
+      - name: Commit updated go.mod/go.sum
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add go.mod go.sum
+          git diff --staged --quiet || git commit -m "Mise à jour automatique go.mod/go.sum"
+          git push
+
