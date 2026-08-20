@@ -21,8 +21,13 @@ func (p *Provider) RequestPairingCode(ctx context.Context, phoneNumber string) (
 		return "", fmt.Errorf("une session existe déjà pour cet appareil")
 	}
 
-	if err := p.client.Connect(); err != nil {
-		return "", fmt.Errorf("échec de démarrage de la connexion: %w", err)
+	// Ne se (re)connecte que si ce n'est pas déjà le cas — évite l'erreur
+	// "websocket is already connected" si un essai QR a déjà démarré la
+	// connexion avant l'appel au code d'appairage.
+	if !p.client.IsConnected() {
+		if err := p.client.Connect(); err != nil {
+			return "", fmt.Errorf("échec de démarrage de la connexion: %w", err)
+		}
 	}
 
 	p.setStatus(whatsapp.StatusAwaitingScan)
