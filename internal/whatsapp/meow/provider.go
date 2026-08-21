@@ -45,13 +45,16 @@ type Config struct {
 
 // Provider implémente whatsapp.Provider via whatsmeow.
 type Provider struct {
-	client *whatsmeow.Client
+	client      *whatsmeow.Client
+	deviceStore *store.Device
+	clientLog   waLog.Logger
 
 	mu              sync.Mutex
 	status          whatsapp.Status
 	qrCode          string
 	messageHandler  whatsapp.MessageHandler
 	autoRejectCalls bool
+	qrAttempted     bool
 }
 
 // New crée un Provider whatsmeow à partir de la config donnée. Elle ouvre le
@@ -80,18 +83,28 @@ func New(cfg Config) (*Provider, error) {
 	}
 
 	clientLog := waLog.Stdout("Client", "ERROR", true)
-	client := whatsmeow.NewClient(deviceStore, clientLog)
 
 	p := &Provider{
-		client: client,
-		status: whatsapp.StatusDisconnected,
+		deviceStore: deviceStore,
+		clientLog:   clientLog,
+		status:      whatsapp.StatusDisconnected,
 	}
+	p.client = whatsmeow.NewClient(deviceStore, clientLog)
+	p.registerHandlers()
 
+	return p, nil
+}
+
+// registerHandlers enregistre tous les gestionnaires d'événements sur
+// p.client. Appelée à la création du Provider, et de nouveau après tout
+// remplacement du client (voir resetClient) puisque les gestionnaires sont
+// attachés à l'instance whatsmeow.Client, pas au Provider.
+func (p *Provider) registerHandlers() {
 	// Écoute les messages entrants pour les transmettre au handler
 	// (utilisé par internal/crm pour construire l'historique des
 	// conversations). Les messages envoyés via SendText/SendImage/
 	// SendDocument sont notifiés séparément, directement dans ces méthodes.
-	client.AddEventHandler(func(evt interface{}) {
+	p.client.AddEventHandler(func(evt interface{}) {
 		msgEvt, ok := evt.(*events.Message)
 		if !ok {
 			return
@@ -118,20 +131,35 @@ func New(cfg Config) (*Provider, error) {
 	})
 
 	// Écoute les appels entrants pour le rejet automatique (fonctionnalité
-	// "anti-appel"). Logique isolée dans calls.go — voir ce fichier si la
-	// compilation échoue sur ce point précis, le reste de New() n'est pas
-	// affecté.
-	client.AddEventHandler(p.handleCallEvent)
+	// "anti-appel"). Logique isolée dans calls.go.
+	p.client.AddEventHandler(p.handleCallEvent)
 
-	// Détecte la réussite de l'appairage par code (voir pairing.go) : passe
-	// le statut à "connecté" une fois le code saisi côté téléphone.
-	client.AddEventHandler(func(evt interface{}) {
+	// Détecte la réussite de l'appairage (QR ou code) : passe le statut à
+	// "connecté".
+	p.client.AddEventHandler(func(evt interface{}) {
 		if _, ok := evt.(*events.PairSuccess); ok {
 			p.setStatus(whatsapp.StatusConnected)
 		}
 	})
+}
 
-	return p, nil
+// resetClient recrée le client whatsmeow sous-jacent (même session sur
+// disque, juste l'objet en mémoire) et réenregistre tous les gestionnaires
+// d'événements.
+//
+// Nécessaire avant une demande de code d'appairage si un flux QR a déjà été
+// entamé sur ce client (même abandonné) : whatsmeow refuse alors les
+// demandes de code d'appairage avec une erreur 400 "bad-request" peu
+// explicite, car son état interne reste marqué comme engagé dans un
+// pairage par QR. Repartir d'un client neuf évite ce conflit.
+func (p *Provider) resetClient() {
+	p.client.Disconnect()
+	p.client = whatsmeow.NewClient(p.deviceStore, p.clientLog)
+	p.registerHandlers()
+
+	p.mu.Lock()
+	p.qrAttempted = false
+	p.mu.Unlock()
 }
 
 // extractText récupère le texte d'un message whatsmeow, qu'il s'agisse d'un
@@ -201,6 +229,10 @@ func (p *Provider) Connect(ctx context.Context) error {
 	if err := p.client.Connect(); err != nil {
 		return fmt.Errorf("échec de démarrage de la connexion: %w", err)
 	}
+
+	p.mu.Lock()
+	p.qrAttempted = true
+	p.mu.Unlock()
 
 	p.setStatus(whatsapp.StatusAwaitingScan)
 
