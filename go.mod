@@ -1,12 +1,12 @@
 module overline-connect
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
-	go.mau.fi/whatsmeow v0.0.0-20260816113502-fb386f152837
+	go.mau.fi/whatsmeow v0.0.0-20260821141805-33cfac511629
 	golang.org/x/crypto v0.55.0
 	google.golang.org/protobuf v1.36.12
 	modernc.org/sqlite v1.57.0
@@ -50,7 +50,7 @@ require (
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.36 // indirect
 	go.mau.fi/libsignal v0.2.2 // indirect
-	go.mau.fi/util v0.10.0 // indirect
+	go.mau.fi/util v0.10.1-0.20260820140024-eb612d936fde // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	golang.org/x/arch v0.22.0 // indirect
 	golang.org/x/exp v0.0.0-20260813180055-c1d0aacb2297 // indirect
