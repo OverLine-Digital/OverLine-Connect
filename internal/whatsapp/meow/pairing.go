@@ -21,9 +21,17 @@ func (p *Provider) RequestPairingCode(ctx context.Context, phoneNumber string) (
 		return "", fmt.Errorf("une session existe déjà pour cet appareil")
 	}
 
-	// Ne se (re)connecte que si ce n'est pas déjà le cas — évite l'erreur
-	// "websocket is already connected" si un essai QR a déjà démarré la
-	// connexion avant l'appel au code d'appairage.
+	// Repart d'un client whatsmeow neuf si un flux QR a déjà été entamé sur
+	// ce client (même abandonné) : voir le commentaire de resetClient()
+	// pour l'explication complète de ce comportement observé en
+	// production (erreur 400 "bad-request" sinon).
+	p.mu.Lock()
+	needsReset := p.qrAttempted
+	p.mu.Unlock()
+	if needsReset {
+		p.resetClient()
+	}
+
 	if !p.client.IsConnected() {
 		if err := p.client.Connect(); err != nil {
 			return "", fmt.Errorf("échec de démarrage de la connexion: %w", err)
