@@ -21,7 +21,7 @@ type Repository struct {
 // New ouvre (ou crée) la base SQLite au chemin donné et s'assure que le
 // schéma existe.
 func New(dbPath string) (*Repository, error) {
-	db, err := sql.Open("sqlite", "file:"+dbPath+"?_foreign_keys=on")
+	db, err := sql.Open("sqlite", "file:"+dbPath+"?_foreign_keys=on&_pragma=busy_timeout(10000)")
 	if err != nil {
 		return nil, fmt.Errorf("échec d'ouverture de la base settings: %w", err)
 	}
