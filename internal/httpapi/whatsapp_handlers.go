@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -50,7 +51,15 @@ func handleWhatsAppConnect(manager *whatsapp.Manager) gin.HandlerFunc {
 			return
 		}
 
-		if err := provider.Connect(c.Request.Context()); err != nil {
+		// IMPORTANT : on utilise context.Background() ici, PAS
+		// c.Request.Context(). Le contexte d'une requête HTTP est annulé
+		// dès que la réponse est envoyée — or Connect() démarre un
+		// traitement en arrière-plan qui doit survivre bien au-delà de
+		// cette requête (attente du scan QR, plusieurs dizaines de
+		// secondes). Utiliser c.Request.Context() coupait la connexion
+		// WhatsApp presque immédiatement après son démarrage — c'était la
+		// cause des échecs de connexion observés en production.
+		if err := provider.Connect(context.Background()); err != nil {
 			log.Println("handleWhatsAppConnect: échec Connect:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start whatsapp connection"})
 			return
@@ -102,7 +111,9 @@ func handlePairPhone(manager *whatsapp.Manager) gin.HandlerFunc {
 			return
 		}
 
-		code, err := provider.RequestPairingCode(c.Request.Context(), req.Phone)
+		// Même raison que pour handleWhatsAppConnect : ne pas utiliser
+		// c.Request.Context() ici.
+		code, err := provider.RequestPairingCode(context.Background(), req.Phone)
 		if err != nil {
 			log.Println("handlePairPhone: échec:", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to request pairing code"})
