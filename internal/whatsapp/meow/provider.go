@@ -110,6 +110,7 @@ func (p *Provider) registerHandlers() {
 			return
 		}
 		text := extractText(msgEvt)
+		log.Println("whatsmeow message reçu — chat:", msgEvt.Info.Chat.String(), "fromMe:", msgEvt.Info.IsFromMe, "texte vide:", text == "")
 		if text == "" {
 			return
 		}
@@ -170,7 +171,7 @@ func (p *Provider) registerHandlers() {
 // mise en forme, etc.). Retourne une chaîne vide pour les messages sans
 // contenu texte (image seule, etc.) — non gérés par le CRM à ce stade.
 func extractText(evt *events.Message) string {
-	msg := evt.Message
+	msg := unwrapMessage(evt.Message)
 	if msg == nil {
 		return ""
 	}
@@ -181,6 +182,25 @@ func extractText(evt *events.Message) string {
 		return ext.GetText()
 	}
 	return ""
+}
+
+// unwrapMessage déballe les messages WhatsApp enveloppés (messages
+// éphémères "disparaissent après", et messages relayés depuis un autre
+// appareil du même compte) pour retrouver le contenu réel. Sans ça, le
+// texte de ces messages n'était jamais détecté par extractText — ils
+// semblaient silencieusement ignorés (aucune erreur, juste absents de
+// l'Inbox).
+func unwrapMessage(msg *waProto.Message) *waProto.Message {
+	if msg == nil {
+		return nil
+	}
+	if eph := msg.GetEphemeralMessage(); eph != nil && eph.GetMessage() != nil {
+		return unwrapMessage(eph.GetMessage())
+	}
+	if dsm := msg.GetDeviceSentMessage(); dsm != nil && dsm.GetMessage() != nil {
+		return unwrapMessage(dsm.GetMessage())
+	}
+	return msg
 }
 
 // SetMessageHandler enregistre la fonction appelée pour chaque message
