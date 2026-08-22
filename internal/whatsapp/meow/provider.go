@@ -110,7 +110,16 @@ func (p *Provider) registerHandlers() {
 			return
 		}
 		text := extractText(msgEvt)
-		log.Println("whatsmeow message reçu — chat:", msgEvt.Info.Chat.String(), "fromMe:", msgEvt.Info.IsFromMe, "texte vide:", text == "")
+		chatJID := msgEvt.Info.Chat.String()
+
+		// Diagnostic temporaire : n'affiche que les messages hors groupe
+		// (pas de "@g.us") pour ne pas noyer les logs sous le trafic d'un
+		// groupe actif — on cherche spécifiquement pourquoi les messages
+		// privés ne remontent pas dans l'Inbox.
+		if !strings.HasSuffix(chatJID, "@g.us") {
+			log.Printf("MSG reçu — chat=%s fromMe=%v texte=%q (longueur=%d)", chatJID, msgEvt.Info.IsFromMe, text, len(text))
+		}
+
 		if text == "" {
 			return
 		}
