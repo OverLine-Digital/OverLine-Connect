@@ -31,10 +31,17 @@ type Repository struct {
 // New ouvre (ou crée) la base SQLite au chemin donné et s'assure que le
 // schéma existe.
 func New(dbPath string) (*Repository, error) {
-	db, err := sql.Open("sqlite", "file:"+dbPath+"?_foreign_keys=on&_pragma=busy_timeout(10000)")
+	db, err := sql.Open("sqlite", "file:"+dbPath+"?_foreign_keys=on&_pragma=busy_timeout(30000)&_pragma=journal_mode(WAL)")
 	if err != nil {
 		return nil, fmt.Errorf("échec d'ouverture de la base crm: %w", err)
 	}
+
+	// Une seule connexion à la fois : SQLite n'autorise qu'un seul
+	// écrivain simultané de toute façon, et laisser Go ouvrir plusieurs
+	// connexions en parallèle ne fait qu'aggraver les blocages
+	// ("database is locked") observés lors de l'import massif de
+	// l'historique WhatsApp (plusieurs milliers de messages d'un coup).
+	db.SetMaxOpenConns(1)
 
 	repo := &Repository{db: db}
 	if err := repo.migrate(); err != nil {
