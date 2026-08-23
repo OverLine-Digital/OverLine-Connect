@@ -64,7 +64,7 @@ func New(cfg Config) (*Provider, error) {
 	ctx := context.Background()
 
 	dbLog := waLog.Stdout("Database", "ERROR", true)
-	container, err := sqlstore.New(ctx, "sqlite", "file:"+cfg.SessionDBPath+"?_foreign_keys=on&_pragma=busy_timeout(10000)", dbLog)
+	container, err := sqlstore.New(ctx, "sqlite", "file:"+cfg.SessionDBPath+"?_foreign_keys=on&_pragma=busy_timeout(30000)&_pragma=journal_mode(WAL)", dbLog)
 	if err != nil {
 		return nil, fmt.Errorf("échec de création du store de session: %w", err)
 	}
