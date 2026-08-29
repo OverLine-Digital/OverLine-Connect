@@ -6,7 +6,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
-	go.mau.fi/whatsmeow v0.0.0-20260821141805-33cfac511629
+	go.mau.fi/whatsmeow v0.0.0-20260828224850-0fadda796019
 	golang.org/x/crypto v0.55.0
 	google.golang.org/protobuf v1.36.12
 	modernc.org/sqlite v1.57.0
