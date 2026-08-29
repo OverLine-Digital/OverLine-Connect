@@ -94,29 +94,46 @@ func (r *Repository) ListConversations(ctx context.Context, companyID string) ([
 	if err != nil {
 		return nil, fmt.Errorf("échec de lecture des conversations: %w", err)
 	}
-	defer rows.Close()
 
-	var conversations []crm.Conversation
+	type row struct {
+		chatJID string
+		lastAt  time.Time
+	}
+	var collected []row
 	for rows.Next() {
-		var chatJID string
-		var lastAt time.Time
-		if err := rows.Scan(&chatJID, &lastAt); err != nil {
+		var rr row
+		if err := rows.Scan(&rr.chatJID, &rr.lastAt); err != nil {
+			rows.Close()
 			return nil, fmt.Errorf("échec de lecture d'une conversation: %w", err)
 		}
+		collected = append(collected, rr)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	// IMPORTANT : on ferme rows explicitement ICI, avant d'exécuter
+	// d'autres requêtes (lastMessageText ci-dessous). Avec une seule
+	// connexion autorisée vers la base (SetMaxOpenConns(1)), garder rows
+	// ouvert pendant qu'on lance une nouvelle requête bloquait
+	// indéfiniment — c'est ce qui empêchait l'Inbox de jamais rien
+	// afficher malgré des messages bien enregistrés.
+	rows.Close()
 
-		lastText, err := r.lastMessageText(ctx, companyID, chatJID)
+	conversations := make([]crm.Conversation, 0, len(collected))
+	for _, rr := range collected {
+		lastText, err := r.lastMessageText(ctx, companyID, rr.chatJID)
 		if err != nil {
 			return nil, err
 		}
-
 		conversations = append(conversations, crm.Conversation{
-			ChatJID:         chatJID,
+			ChatJID:         rr.chatJID,
 			CompanyID:       companyID,
-			LastMessageAt:   lastAt,
+			LastMessageAt:   rr.lastAt,
 			LastMessageText: lastText,
 		})
 	}
-	return conversations, rows.Err()
+	return conversations, nil
 }
 
 func (r *Repository) lastMessageText(ctx context.Context, companyID, chatJID string) (string, error) {
