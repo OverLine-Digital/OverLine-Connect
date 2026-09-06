@@ -51,3 +51,9 @@ func (s *Service) ListMessages(ctx context.Context, companyID, chatJID string, l
 	}
 	return s.repo.ListMessages(ctx, companyID, chatJID, limit)
 }
+
+// CountMessages retourne le nombre total de messages enregistrés pour une
+// entreprise. Route de diagnostic temporaire.
+func (s *Service) CountMessages(ctx context.Context, companyID string) (int, error) {
+	return s.repo.CountMessages(ctx, companyID)
+}
