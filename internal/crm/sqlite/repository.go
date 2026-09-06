@@ -149,6 +149,18 @@ func (r *Repository) lastMessageText(ctx context.Context, companyID, chatJID str
 	return text, nil
 }
 
+// CountMessages retourne le nombre total de messages enregistrés pour une
+// entreprise, tous chats confondus. Route de diagnostic temporaire — à
+// retirer une fois le bug d'affichage de l'Inbox confirmé résolu.
+func (r *Repository) CountMessages(ctx context.Context, companyID string) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM messages WHERE company_id = ?`, companyID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("échec de comptage des messages: %w", err)
+	}
+	return count, nil
+}
+
 func (r *Repository) ListMessages(ctx context.Context, companyID, chatJID string, limit int) ([]crm.Message, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, company_id, chat_jid, sender_jid, text, from_me, timestamp
