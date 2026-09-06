@@ -44,6 +44,7 @@ func NewRouter(manager *whatsapp.Manager, authService *auth.Service, crmService 
 
 	protected.GET("/conversations", handleListConversations(crmService))
 	protected.GET("/conversations/:chatJID/messages", handleListMessages(crmService))
+	protected.GET("/debug/count", handleDebugCount(crmService))
 
 	// Paramètres de modération (antilien, anti-appel — inspirés de
 	// Toxic-MD, adaptés au multi-tenant).
