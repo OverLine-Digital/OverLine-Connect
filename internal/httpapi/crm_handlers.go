@@ -28,6 +28,30 @@ func handleListConversations(crmService *crm.Service) gin.HandlerFunc {
 	}
 }
 
+// handleDebugCount est une route de diagnostic TEMPORAIRE : compte
+// directement le nombre de messages réellement enregistrés en base pour
+// l'entreprise, sans passer par la logique de regroupement par conversation
+// (utile pour vérifier si les données sont bien écrites, indépendamment
+// d'un éventuel bug d'affichage de l'Inbox). À retirer une fois le
+// problème confirmé résolu.
+func handleDebugCount(crmService *crm.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		company, ok := companyFromContext(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthenticated"})
+			return
+		}
+
+		count, err := crmService.CountMessages(c.Request.Context(), company.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message_count": count, "company_id": company.ID})
+	}
+}
+
 func handleListMessages(crmService *crm.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		company, ok := companyFromContext(c)
