@@ -18,4 +18,8 @@ type Repository interface {
 	// ListMessages retourne les messages d'une conversation, du plus ancien
 	// au plus récent, limités à limit résultats (les plus récents).
 	ListMessages(ctx context.Context, companyID, chatJID string, limit int) ([]Message, error)
+
+	// CountMessages retourne le nombre total de messages enregistrés pour
+	// une entreprise. Route de diagnostic temporaire.
+	CountMessages(ctx context.Context, companyID string) (int, error)
 }
